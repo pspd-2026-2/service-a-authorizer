@@ -1,49 +1,52 @@
-# Módulo B: Serviço de Análise de Risco (Antifraude)
+# Módulo A: Serviço de Autorização (Authorizer)
 
-Este microsserviço é o **Módulo B** da arquitetura distribuída desenvolvida para a avaliação de risco financeiro em transações de gateway de pagamento. Desenvolvido em **Go**, ele expõe simultaneamente endpoints **gRPC** e **REST HTTP/1.1** para permitir testes comparativos de desempenho e multiplexação.
+Este microsserviço é o **Módulo A** da arquitetura distribuída, atuando como o autorizador principal de transações de cartão de crédito. Desenvolvido em **Go**, ele expõe simultaneamente endpoints **gRPC** e **REST HTTP/1.1** para permitir testes comparativos de desempenho e integração flexível.
 
-O serviço foi projetado utilizando **Arquitetura Hexagonal (Ports and Adapters)**, garantindo alto isolamento entre a regra de negócio, os protocolos de comunicação e a persistência de dados.
+## Escopo e Regras de Negócio
 
-## Estrutura do Projeto e Arquitetura
+O serviço recebe tentativas de transação e avalia a elegibilidade do cartão com base em regras estritas:
+* **Validação de Status:** Verifica se o cartão consultado no repositório em memória está `active`, `blocked` ou `expired`.
+* **Checagem de Limite:** Garante que o limite disponível (`availableLimit`) seja maior ou igual ao montante solicitado (`amount`).
+* **Geração de Autorização:** Transações aprovadas recebem um `TransactionID` único gerado via bytes aleatórios combinados ao timestamp, além de um `AuthCode` em formato hexadecimal.
+* **Simulação de Latência (Benchmark):** Cada requisição possui um atraso artificial fixo de `80ms` (`time.Sleep`) na camada de domínio para simular chamadas externas a emissores reais ou I/O de rede, auxiliando nos testes de estresse (gRPC vs REST).
 
-A organização das pastas segue o padrão de mercado para microsserviços em Go:
+---
+
+## Estrutura do Projeto
+
+A organização das pastas reflete a arquitetura atual do microsserviço:
 
 ```text
 .
-|-- build/                    # Infraestrutura e Deploy
-|   |-- Dockerfile            # Multi-stage build para gerar a imagem do contêiner
-|   `-- backup.json           # Seed inicial do banco persistente baseado em arquivos
-|-- cmd/
-|   `-- server/
-|       `-- main.go           # Ponto de entrada. Injeta dependências e sobe os servidores
+|-- bin/                      # Diretório de saída para binários compilados
+|-- cmd/                      
+|   `-- server/               
+|       `-- main.go           # Ponto de entrada. Injeta dependências e sobe os servidores HTTP e gRPC
+|-- config/                   
+|   `-- config.go             # Leitura de variáveis de ambiente e configurações
 |-- internal/                 # Código privado do microsserviço
-|   |-- adapters/             # Camada de Infraestrutura (Comunicação com o mundo externo)
-|   |   |-- grpc/
-|   |   |   `-- handler.go    # Implementa Unary e Client Streaming via gRPC
-|   |   |-- repository/
-|   |   |   `-- in_memory.go  # DB Thread-safe em memória com persistência em JSON
-|   |   `-- rest/
-|   |       `-- handler.go    # Expõe a mesma lógica via REST para o benchmark
-|   |-- config/               # Gerenciamento de Ambiente
-|   |   `-- app.go            # Leitura do .env e fallback de variáveis de ambiente
-|   `-- core/                 # Coração da Arquitetura Hexagonal
-|       |-- domain/
-|       |   `-- risk.go       # Entidades puras do negócio (Transaction, RiskResult)
-|       `-- ports/
-|           |-- repository.go # Contrato de acesso a dados (Driven Port)
-|           `-- risk.go       # Contrato de entrada do caso de uso (Driving Port)
-|   |-- usecase/              # Camada de Aplicação (Use Cases)
-|   |   `-- risk_service.go   # Lógica antifraude, cruzamento de dados e geração de carga (Key Stretching)
-`-- proto/                    # Contratos de Comunicação
-    |-- antifraud.proto       # Definição agnóstica das mensagens e serviços
-    `-- pb/                   # Código Go auto-gerado pelo compilador do Protocol Buffers
-
+|   |-- authorizer/           # Regras de negócio, handlers e persistência (repositório em memória)
+|   |   |-- authorizer.go     # Core da lógica de autorização e aprovação de limites
+|   |   |-- grpc_handler.go   # Implementação da interface gRPC
+|   |   |-- handler.go        # Implementação dos endpoints REST e Health Check
+|   |   `-- repository.go     # Acesso e busca de dados dos cartões mockados
+|   |-- models/               
+|   |   `-- models.go         # Entidades puras do negócio (Request, Response, Output)
+|   `-- pb/                   # Código Go auto-gerado pelo compilador do Protocol Buffers
+|       |-- models.go         
+|       `-- service.go        
+|-- proto/                    
+|   `-- authorization.proto   # Definição dos contratos de comunicação gRPC
+|-- .env.example              # Template de variáveis de ambiente
+|-- Dockerfile                # Configuração para gerar a imagem do contêiner
+|-- go.mod                    # Gerenciamento de dependências
+`-- go.sum                    # Checksums das dependências
 ```
 
 ### Decisões Arquiteturais Relevantes
 
-1. **Banco de Dados em Memória Persistente:** Utilizamos `sync.RWMutex` para suportar milhares de requisições concorrentes. Os dados (histórico e blocklist) são persistidos automaticamente no `build/backup.json` a cada nova escrita.
-2. **Key Stretching (Gargalo de CPU):** Para o benchmark gRPC vs REST, a aplicação implementa um loop de 50.000 iterações de `sha256` para gerar a Assinatura de Segurança da transação. Isso simula o processamento pesado e evidencia o poder do HTTP/2 no gRPC em ambientes de alto estresse.
+1. **Banco de Dados em Memória Persistente:** Utilizamos sync.RWMutex para suportar milhares de requisições concorrentes.
+2. **Key Stretching (Gargalo de CPU):** Para o benchmark gRPC vs REST, a aplicação implementa um loop de 50.000 iterações de sha256 para gerar a Assinatura de Segurança da transação. Isso simula o processamento pesado e evidencia o poder do HTTP/2 no gRPC em ambientes de alto estresse.
 
 
 
@@ -57,7 +60,7 @@ O projeto utiliza o arquivo `.env` para configuração local (veja o `.env.examp
 | --- | --- | --- |
 | `REST_PORT` | `8081` | Porta em que o servidor REST/JSON irá escutar. |
 | `GRPC_PORT` | `50052` | Porta em que o servidor gRPC (HTTP/2) irá escutar. |
-| `BACKUP_FILE` | `build/backup.json` | Caminho do arquivo para carregar e salvar o estado do DB. |
+| `SERVICE_NAME` |  | Nome do serviço utilizando logs de inicialização |
 
 ---
 
@@ -80,14 +83,14 @@ go run ./cmd/server/main.go
 
 ### 2. Rodando via Docker (Para Kubernetes / Minikube)
 
-O `Dockerfile` foi posicionado na pasta `build/`. Para gerar a imagem corretamente, **o comando de build deve ser executado na raiz do repositório**:
+O Dockerfile está posicionado na raiz do repositório.
 
 ```bash
 # Gerar a imagem estática
-docker build -f build/Dockerfile -t antifraud-service:latest .
+docker build -t authorizer-service:latest .
 
 # Rodar o contêiner mapeando ambas as portas
-docker run -p 8081:8081 -p 50052:50052 antifraud-service:latest
+docker run -p 8081:8081 -p 50052:50052 authorizer-service:latest
 
 ```
 
@@ -99,13 +102,23 @@ Você pode testar a aplicação utilizando o **Postman** (que tem suporte nativo
 
 ### API REST (Porta 8081)
 
-**POST** `http://localhost:8081/api/v1/risk/analyze`
+**POST** `http://localhost:8081/health`
 
 ```json
 {
-  "transactionId": "tx-12345",
+  "status": "ok",
+  "service": "authorization-service"
+}
+
+```
+
+**POST** `http://localhost:8081/authorize`
+
+```json
+{
   "userId": "user-888",
-  "amount": 2500.50,
+  "carNumber": "1234-5678-9012-3456",
+  "amount": 250.00,
   "ipAddress": "192.168.0.10"
 }
 
@@ -113,27 +126,14 @@ Você pode testar a aplicação utilizando o **Postman** (que tem suporte nativo
 
 ### API gRPC (Porta 50052)
 
-Importe o arquivo `proto/antifraud.proto` no seu Postman ou grpcurl.
-
-1. Unary Streaming (`AnalyzeRiskScore`) Validação imediata da transação. Utiliza payload semelhante ao REST:
+Importe o arquivo proto/authorization.proto no seu cliente gRPC (Postman, grpcurl, etc). O serviço expõe o método Unary Authorize.
 
 ```json
 {
-  "transaction_id": "tx-grpc-404",
-  "user_id": "user-999", 
-  "amount": 900.00,
-  "ip_address": "172.16.254.1"
+  "UserId": "user-999", 
+  "Amount": 1500.00,
+  "CardNumber": "4321-8765-2109-6543",
+  "IpAddress": "172.16.254.1"
 }
 
 ```
-
-*(Nota: O `user-999` e o IP `172.16.254.1` já estão na seed do `backup.json`, o que causará bloqueio automático provando que o banco em memória está funcionando).*
-
-2. Client Streaming (`BatchChargeback`) Processamento em lote de estornos. O cliente abre a conexão e envia múltiplos eventos. Cada IP enviado aqui é automaticamente adicionado à Blocklist dinâmica do servidor em tempo real:
-
-```json
-{
-  "transaction_id": "tx-hacked-1",
-  "reason": "Cloned Card",
-  "ip_address": "10.0.0.155"
-}
