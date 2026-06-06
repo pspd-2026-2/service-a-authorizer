@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package authorization;
+
+option go_package = "service-a/internal/pb;pb";
+
+service AuthorizationService {
+  rpc Authorize(AuthorizationRequest) returns (AuthorizationResponse) {}
+}
+
+message AuthorizationRequest {
+  string user_id = 1;
+  double amount = 2;
+  string card_number = 3;
+  string ip_address = 4;
+}
+
+message AuthorizationResponse {
+  string transaction_id = 1;
+  string auth_code = 2;
+  string status = 3;
+  string card_status = 4;
+  double approved_limit = 5;
+  double requested_amount = 6;
+  bool limit_sufficient = 7;
+  string message = 8;
+}
