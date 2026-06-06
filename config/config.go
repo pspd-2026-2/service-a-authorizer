@@ -3,14 +3,16 @@ package config
 import "os"
 
 type Config struct {
-	HTTPPort string
+	HTTPPort    string
+	GRPCPort    string
 	ServiceName string
-	LogLevel string
+	LogLevel    string
 }
 
 func Load() *Config {
 	return &Config{
 		HTTPPort:    getEnv("HTTP_PORT", "8081"),
+		GRPCPort:    getEnv("GRPC_PORT", "50052"),
 		ServiceName: getEnv("SERVICE_NAME", "authorization-service"),
 		LogLevel:    getEnv("LOG_LEVEL", "info"),
 	}
