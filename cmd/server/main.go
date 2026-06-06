@@ -86,4 +86,6 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func registerAuthorizationService(s *grpc.Server, impl pb.AuthorizationServiceServer) {}
+func registerAuthorizationService(s *grpc.Server, impl pb.AuthorizationServiceServer) {
+	pb.RegisterAuthorizationServiceServer(s, impl)
+}

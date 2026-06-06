@@ -9,6 +9,7 @@ import (
 )
 
 type GRPCHandler struct {
+	pb.UnimplementedAuthorizationServiceServer
 	authorizer *Authorizer
 }
 
@@ -26,10 +27,10 @@ func (h *GRPCHandler) Authorize(ctx context.Context, req *pb.AuthorizationReques
 	start := time.Now()
 	output := h.authorizer.AuthorizeTransaction(models.AuthorizeTransactionInput{
 		Request: models.AuthorizationRequest{
-			UserID:    req.UserId,
-			Amount:    req.Amount,
+			UserID:     req.UserId,
+			Amount:     req.Amount,
 			CardNumber: req.CardNumber,
-			IPAddress: req.IpAddress,
+			IPAddress:  req.IpAddress,
 		},
 	})
 	elapsed := time.Since(start)
@@ -54,4 +55,3 @@ func (h *GRPCHandler) Authorize(ctx context.Context, req *pb.AuthorizationReques
 
 	return resp, output.Error
 }
-
