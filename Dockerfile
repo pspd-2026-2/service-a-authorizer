@@ -1,9 +1,9 @@
 # ── Build stage ──────────────────────────────────────────────────────────────
-FROM golang:1.24-alpine AS builder
+FROM golang:1.22-alpine AS builder
 
 WORKDIR /app
 
-COPY go.mod ./
+COPY go.mod go.sum* ./
 RUN go mod download
 
 COPY . .
@@ -15,9 +15,10 @@ FROM scratch
 
 COPY --from=builder /app/authorization-service /authorization-service
 
-EXPOSE 8081
+EXPOSE 8081 50052
 
 ENV HTTP_PORT=8081
+ENV GRPC_PORT=50052
 ENV SERVICE_NAME=authorization-service
 ENV LOG_LEVEL=info
 
