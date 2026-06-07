@@ -21,10 +21,14 @@ type cardRepository struct {
 func newCardRepository() *cardRepository {
 	return &cardRepository{
 		cards: map[string]*CardRecord{
+			// Standard cards
 			"4111111111111111": {MaskedNumber: "4111...1111", Status: "active",  CreditLimit: 10000.00, CurrentDebt: 2000.00},
 			"4000000000000002": {MaskedNumber: "4000...0002", Status: "blocked", CreditLimit: 5000.00,  CurrentDebt: 5000.00},
 			"4000000000000069": {MaskedNumber: "4000...0069", Status: "expired", CreditLimit: 3000.00,  CurrentDebt: 0.00},
 			"5500000000000004": {MaskedNumber: "5500...0004", Status: "active",  CreditLimit: 20000.00, CurrentDebt: 500.00},
+			// Demo/seed cards for preset scenarios
+			"4222222222222222": {MaskedNumber: "4222...2222", Status: "active",  CreditLimit: 50000.00, CurrentDebt: 0.00},
+			"4000000000000119": {MaskedNumber: "4000...0119", Status: "active",  CreditLimit: 500.00,   CurrentDebt: 0.00},
 		},
 	}
 }
