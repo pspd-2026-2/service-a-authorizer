@@ -15,6 +15,8 @@ import (
 	"service-a/internal/pb"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func main() {
@@ -44,6 +46,7 @@ func main() {
 
 	grpcServer := grpc.NewServer()
 	registerAuthorizationService(grpcServer, grpcHandler)
+	healthpb.RegisterHealthServer(grpcServer, health.NewServer())
 
 	go func() {
 		listener, err := net.Listen("tcp", ":"+cfg.GRPCPort)
