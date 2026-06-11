@@ -35,7 +35,7 @@ func (h *GRPCHandler) Authorize(ctx context.Context, req *pb.AuthorizationReques
 	})
 	elapsed := time.Since(start)
 
-	log.Printf("[AUTHORIZE] transactionId=%s status=%s userId=%s amount=%.2f duration=%s",
+	log.Printf("[AUTHORIZE] gRPC Authorize transactionId=%s status=%s userId=%s amount=%.2f duration=%s",
 		output.Response.TransactionID,
 		output.Response.Status,
 		req.UserId,
